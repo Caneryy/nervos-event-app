@@ -8,11 +8,25 @@ import './app.scss';
 import 'react-toastify/dist/ReactToastify.css';
 
 import { SimpleStorageWrapper } from '../lib/contracts/SimpleStorageWrapper';
+import { PolyjuiceHttpProvider } from '@polyjuice-provider/web3';
+import { CONFIG } from '../config';
+
+import { AddressTranslator } from 'nervos-godwoken-integration';
+
 
 async function createWeb3() {
     // Modern dapp browsers...
     if ((window as any).ethereum) {
-        const web3 = new Web3((window as any).ethereum);
+        // const web3 = new Web3((window as any).ethereum);
+
+        const godwokenRpcUrl = CONFIG.WEB3_PROVIDER_URL;
+        const providerConfig = {
+            rollupTypeHash: CONFIG.ROLLUP_TYPE_HASH,
+            ethAccountLockCodeHash: CONFIG.ETH_ACCOUNT_LOCK_CODE_HASH,
+            web3Url: godwokenRpcUrl
+        };
+        const provider = new PolyjuiceHttpProvider(godwokenRpcUrl, providerConfig);
+        const web3 = new Web3(provider);
 
         try {
             // Request account access if needed
@@ -32,6 +46,7 @@ export function App() {
     const [web3, setWeb3] = useState<Web3>(null);
     const [contract, setContract] = useState<SimpleStorageWrapper>();
     const [accounts, setAccounts] = useState<string[]>();
+    const [polyjuiceAddress, setPolyjuiceAddress] = useState<string>();
     const [balance, setBalance] = useState<bigint>();
     const [existingContractIdInputValue, setExistingContractIdInputValue] = useState<string>();
     const [storedValue, setStoredValue] = useState<number | undefined>();
@@ -124,10 +139,15 @@ export function App() {
         (async () => {
             const _web3 = await createWeb3();
             setWeb3(_web3);
-
+            
             const _accounts = [(window as any).ethereum.selectedAddress];
             setAccounts(_accounts);
+            
             console.log({ _accounts });
+
+            const addressTranslator = new AddressTranslator();
+            const polyjuiceAddress = addressTranslator.ethAddressToGodwokenShortAddress(_accounts[0]);
+            setPolyjuiceAddress(polyjuiceAddress);
 
             if (_accounts && _accounts[0]) {
                 const _l2Balance = BigInt(await _web3.eth.getBalance(_accounts[0]));
@@ -141,6 +161,9 @@ export function App() {
     return (
         <div>
             Your ETH address: <b>{accounts?.[0]}</b>
+            <br />
+            <br />
+            Your PolyJuice address: <b>{polyjuiceAddress}</b>
             <br />
             <br />
             Balance: <b>{balance ? (balance / 10n ** 8n).toString() : <LoadingIndicator />} ETH</b>
