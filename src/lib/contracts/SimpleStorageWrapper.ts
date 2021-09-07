@@ -28,8 +28,13 @@ export class SimpleStorageWrapper {
         return parseInt(data, 10);
     }
 
-    async setStoredValue(value: number, fromAddress: string) {
+    async getEvents(fromAddress: string) {
+        const data = await this.contract.methods.getEvents().call({ from: fromAddress });
 
+        return data;
+    }
+
+    async setStoredValue(value: number, fromAddress: string) {
 
         const tx = await this.contract.methods.set(value).send({
             ...DEFAULT_SEND_OPTIONS,
@@ -39,8 +44,25 @@ export class SimpleStorageWrapper {
         return tx;
     }
 
+    async vote(id: string, fromAddress: string) {
+
+        const tx = await this.contract.methods.vote(id).send({
+            ...DEFAULT_SEND_OPTIONS,
+            from: fromAddress
+        });
+
+        return tx;
+    }
+
+    async addEvent(name: string, fromAddress: string) {
+        const tx = await this.contract.methods.addEvent(name).send({
+            ...DEFAULT_SEND_OPTIONS,
+            from: fromAddress
+        });
+    }
+
     async deploy(fromAddress: string) {
-        const contract = await this.contract
+        const tx = this.contract
             .deploy({
                 data: SimpleStorageJSON.bytecode,
                 arguments: []
@@ -49,8 +71,17 @@ export class SimpleStorageWrapper {
                 ...DEFAULT_SEND_OPTIONS,
                 from: fromAddress
             });
+        
+        let transactionHash: string = null;
+        tx.on('transactionHash', (hash: string) => {
+            transactionHash = hash;
+        });
+
+        const contract = await tx;
 
         this.useDeployed(contract.options.address);
+
+        return transactionHash;
     }
 
     useDeployed(contractAddress: string) {

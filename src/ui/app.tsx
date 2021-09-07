@@ -56,6 +56,11 @@ export function App() {
         number | undefined
     >();
 
+    const [name, setName] = useState<string>();
+    const [events, setEvents] = useState<[string,string,string,string][]>();
+    const [deployTxHash, setDeployTxHash] = useState<string | undefined>();
+
+
     useEffect(() => {
         if (transactionInProgress && !toastId.current) {
             toastId.current = toast.info(
@@ -85,7 +90,9 @@ export function App() {
         try {
             setTransactionInProgress(true);
 
-            await _contract.deploy(account);
+            const transactionHash = await _contract.deploy(account);
+
+            setDeployTxHash(transactionHash);
 
             setExistingContractAddress(_contract.address);
             toast(
@@ -131,6 +138,49 @@ export function App() {
         }
     }
 
+    async function setAddEvent() {
+        try {
+            setTransactionInProgress(true);
+            await contract.addEvent(name, account);
+            toast(
+                'Successfully added event.',
+                { type: 'success' }
+            );
+            
+        } catch (error) {
+            console.error(error);
+            toast('There was an error sending your transaction. Please check developer console.');
+        } finally {
+            setTransactionInProgress(false);
+            await getEvents();
+        }
+    }
+
+    async function vote(id:string) {
+        try {
+            setTransactionInProgress(true);
+            await contract.vote(id, account);
+            toast(
+                'Successfully voted event.',
+                { type: 'success' }
+            );
+            
+        } catch (error) {
+            console.error(error);
+            toast('There was an error sending your transaction. Please check developer console.');
+        } finally {
+            setTransactionInProgress(false);
+            await getEvents();
+        }
+    }
+
+    async function getEvents() {
+        const values = await contract.getEvents(account);
+        toast('Successfully read latest stored value.', { type: 'success' });
+        console.log(values);
+        setEvents(values);
+    }
+
     useEffect(() => {
         if (web3) {
             return;
@@ -171,6 +221,8 @@ export function App() {
             <br />
             Deployed contract address: <b>{contract?.address || '-'}</b> <br />
             <br />
+            <br />
+            Deploy transaction hash: <b>{deployTxHash || '-'}</b>
             <hr />
             <p>
                 The button below will deploy a SimpleStorage smart contract where you can store a
@@ -195,23 +247,37 @@ export function App() {
             </button>
             <br />
             <br />
-            <button onClick={getStoredValue} disabled={!contract}>
-                Get stored value
-            </button>
-            {storedValue ? <>&nbsp;&nbsp;Stored value: {storedValue.toString()}</> : null}
-            <br />
             <br />
             <input
-                type="number"
-                onChange={e => setNewStoredNumberInputValue(parseInt(e.target.value, 10))}
+                onChange={e => setName(e.target.value)}
             />
-            <button onClick={setNewStoredValue} disabled={!contract}>
-                Set new stored value
+            <button onClick={setAddEvent} disabled={!contract}>
+                Add event
             </button>
             <br />
             <br />
+            <button onClick={getEvents} disabled={!contract}>
+                Get events
+            </button>
             <br />
             <br />
+            <table style={{ width: 500 }}>
+                <thead>
+                    <tr>
+                        <td>id</td>
+                        <td>creator</td>
+                        <td>name</td>
+                        <td>joined</td>
+                    </tr>
+                </thead>
+                <tbody>
+                   {events && events.map(event => <tr><td> {event[0]} </td><td> {event[1]} </td><td> {event[2]} </td><td> {event[3]} </td>
+                   <td> 
+                    <button onClick={() => vote(event[0])} value={event[0]} disabled={!contract}>Join</button> 
+                    </td>
+                    </tr>)}
+                </tbody>
+            </table>
             <hr />
             <ToastContainer />
         </div>
